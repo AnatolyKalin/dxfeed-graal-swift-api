@@ -1,0 +1,59 @@
+# Builds DXFeedFramework with a version of the graal-native-sdk (a release of dxFeed/dxfeed-graal-native-sdk) for
+# iOS, the iOS Simulator and macOS, and runs the tests on macOS. The version is native_version of build.gradle, or the
+# sdk_version input of a manual run.
+name: SDK check
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: 'The graal-native-sdk version, for example 3.7.0-rc3 (empty: native_version of build.gradle)'
+        required: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    # macOS 15: an SDK library that requires a newer macOS fails the tests here.
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iOS
+            destination: generic/platform=iOS
+          - name: iOS Simulator
+            destination: generic/platform=iOS Simulator
+          - name: macOS
+            destination: platform=macOS
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set the SDK version
+        if: inputs.sdk_version != ''
+        run: sed -i '' "s/^def native_version = .*/def native_version = '${{ inputs.sdk_version }}'/" build.gradle
+
+      - name: Fetch the SDK
+        run: |
+          grep '^def native_version' build.gradle
+          ./gradlew --no-daemon fetchDependencies
+          find graal_builds -maxdepth 2 -type f | sort
+
+      - name: Build
+        run: >
+          xcodebuild build -project DXFeedFramework.xcodeproj -scheme DXFeedFramework
+          -destination '${{ matrix.destination }}' CODE_SIGNING_ALLOWED=NO
+
+      - name: Test
+        if: matrix.name == 'macOS'
+        run: >
+          xcodebuild test -project DXFeedFramework.xcodeproj -scheme DXFeedFramework
+          -testPlan DXExceptPublisherTests -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
