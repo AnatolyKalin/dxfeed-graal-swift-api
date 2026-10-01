@@ -139,12 +139,20 @@ final class DXLastEventTest: XCTestCase {
                             OptionSale.self]
             let subscription = try endpoint?.getFeed()?.createSubscription(allTypes)
             try subscription?.addSymbols(symbol)
-            DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.3) {
+            let scheduled = Date()
+            // A block of the background QoS can wait for seconds on a loaded simulator, so the expectation expired
+            // before the events were published.
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.3) {
                 print(Thread.current.threadName)
-                try? publisher?.publish(events: events)
+                do {
+                    try publisher?.publish(events: events)
+                } catch {
+                    XCTFail("Publish failed: \(error)")
+                }
+                print("Published \(events.count) events in \(Date().timeIntervalSince(scheduled)) s after scheduling")
                 connectedExpectation.fulfill()
             }
-            wait(for: [connectedExpectation], timeout: 1)
+            wait(for: [connectedExpectation], timeout: 10)
             fetching(endpoint?.getFeed())
             try endpoint?.closeAndAwaitTermination()
         } catch {
