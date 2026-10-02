@@ -54,6 +54,59 @@ jobs:
           ./gradlew --no-daemon fetchDependencies
           find graal_builds -maxdepth 2 -type f | sort
 
+      # Declares the platform of the SDK objects (LC_BUILD_VERSION) with set-build-version of the SDK branch
+      # fix/ios-archives-build-version (.github/sdk-tools/build.py), as its build will: the size must not change.
+      - name: Declare the platform of the SDK objects
+        run: |
+          set -euo pipefail
+          tool=.github/sdk-tools/build.py
+          for entry in "ios ios" "ios_simulator simulator"; do
+            set -- ${entry}
+            object=graal_builds/$1/libDxFeedGraalNativeSdk.o
+            cp "${object}" "${RUNNER_TEMP}/$1-before.o"
+            before=$(stat -f %z "${object}")
+            python3 "${tool}" set-build-version --file "${object}" --platform "$2"
+            after=$(stat -f %z "${object}")
+            echo "${object}: ${before} -> ${after} bytes, $(cmp -l "${RUNNER_TEMP}/$1-before.o" "${object}" | wc -l | tr -d ' ') bytes changed"
+            [ "${before}" = "${after}" ] || { echo "The size changed"; exit 1; }
+            for arch in $(xcrun lipo -archs "${object}"); do
+              echo "-- ${arch}:"; xcrun vtool -arch "${arch}" -show-build "${object}"
+            done
+          done
+
+      - name: Compare with vtool and check the link
+        if: matrix.name == 'iOS'
+        run: |
+          set -uo pipefail
+          tool=.github/sdk-tools/build.py
+          status=0
+          sdk=$(xcrun --sdk iphoneos --show-sdk-version)
+          echo "== vtool -set-build-version ios 12.0 ${sdk} on the object of 3.7.0"
+          if xcrun vtool -set-build-version ios 12.0 "${sdk}" -replace -output "${RUNNER_TEMP}/vtool.o" "${RUNNER_TEMP}/ios-before.o"; then
+            echo "vtool: $(stat -f %z "${RUNNER_TEMP}/ios-before.o") -> $(stat -f %z "${RUNNER_TEMP}/vtool.o") bytes"
+            xcrun vtool -show-build "${RUNNER_TEMP}/vtool.o"
+            cmp "${RUNNER_TEMP}/vtool.o" graal_builds/ios/libDxFeedGraalNativeSdk.o && echo "vtool and set-build-version: identical" || echo "vtool and set-build-version differ"
+          else
+            echo "vtool failed"
+          fi
+          for entry in "ios ios" "ios_simulator simulator"; do
+            set -- ${entry}
+            echo "== build.py check ${2}"
+            python3 "${tool}" check --dir graal_builds/$1 --platform "$2" || status=1
+          done
+          # The device object linked for the simulator: it linked before (no platform), it must not now.
+          root=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          link() {
+            xcrun --sdk iphonesimulator clang -target arm64-apple-ios14.0-simulator -isysroot "${root}" -dynamiclib \
+              -o "${RUNNER_TEMP}/wrong.dylib" "$1" graal_builds/ios_simulator/*.a -framework Foundation 2>&1 | tail -n 3
+            return "${PIPESTATUS[0]}"
+          }
+          echo "== the device object of 3.7.0 (no platform) linked for the simulator"
+          link "${RUNNER_TEMP}/ios-before.o" && echo "linked" || echo "did not link"
+          echo "== the device object with the platform linked for the simulator"
+          if link graal_builds/ios/libDxFeedGraalNativeSdk.o; then echo "linked: the platform is not checked"; status=1; else echo "did not link, as expected"; fi
+          exit "${status}"
+
       - name: Build
         run: >
           xcodebuild build -project DXFeedFramework.xcodeproj -scheme DXFeedFramework
@@ -99,6 +152,26 @@ jobs:
         run: |
           grep '^def native_version' build.gradle
           ./gradlew --no-daemon fetchDependencies
+
+      # Declares the platform of the SDK objects (LC_BUILD_VERSION) with set-build-version of the SDK branch
+      # fix/ios-archives-build-version (.github/sdk-tools/build.py), as its build will: the size must not change.
+      - name: Declare the platform of the SDK objects
+        run: |
+          set -euo pipefail
+          tool=.github/sdk-tools/build.py
+          for entry in "ios ios" "ios_simulator simulator"; do
+            set -- ${entry}
+            object=graal_builds/$1/libDxFeedGraalNativeSdk.o
+            cp "${object}" "${RUNNER_TEMP}/$1-before.o"
+            before=$(stat -f %z "${object}")
+            python3 "${tool}" set-build-version --file "${object}" --platform "$2"
+            after=$(stat -f %z "${object}")
+            echo "${object}: ${before} -> ${after} bytes, $(cmp -l "${RUNNER_TEMP}/$1-before.o" "${object}" | wc -l | tr -d ' ') bytes changed"
+            [ "${before}" = "${after}" ] || { echo "The size changed"; exit 1; }
+            for arch in $(xcrun lipo -archs "${object}"); do
+              echo "-- ${arch}:"; xcrun vtool -arch "${arch}" -show-build "${object}"
+            done
+          done
 
       - name: Choose a simulator
         id: simulator
