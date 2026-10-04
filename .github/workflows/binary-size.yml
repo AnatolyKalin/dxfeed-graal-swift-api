@@ -17,20 +17,35 @@ jobs:
           # The SDK that the Swift API uses now (GraalVM 22).
           - name: 2.2.1
             key: 1-2.2.1
-            version: 2.2.1
+            object: 2.2.1
+            libraries: 2.2.1
           # The libraries before LC_LINKER_OPTION: the project adds -lz.
           - name: 3.7.0-rc3 + -lz in the project
             key: 2-3.7.0-rc3
-            version: 3.7.0-rc3
+            object: 3.7.0-rc3
+            libraries: 3.7.0-rc3
             lz: true
+          # The object of 3.7.0 with the libraries of rc3: what the libraries of 3.7.0 change.
+          - name: .o 3.7.0, .a 3.7.0-rc3 + -lz
+            key: 3-o-3.7.0-a-rc3
+            object: 3.7.0
+            libraries: 3.7.0-rc3
+            lz: true
+          # The object of rc3 with the libraries of 3.7.0: what the object of 3.7.0 changes.
+          - name: .o 3.7.0-rc3, .a 3.7.0
+            key: 4-o-rc3-a-3.7.0
+            object: 3.7.0-rc3
+            libraries: 3.7.0
           # The libraries with LC_LINKER_OPTION (-lz, -framework CFNetwork).
           - name: 3.7.0
-            key: 3-3.7.0
-            version: 3.7.0
+            key: 5-3.7.0
+            object: 3.7.0
+            libraries: 3.7.0
           # The object with LC_BUILD_VERSION, as the next release makes it.
           - name: 3.7.0 + LC_BUILD_VERSION
-            key: 4-3.7.0-build-version
-            version: 3.7.0
+            key: 6-3.7.0-build-version
+            object: 3.7.0
+            libraries: 3.7.0
             build_version: true
 
     steps:
@@ -43,11 +58,21 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # graal_builds: the objects (.o) of one version and the libraries (.a) of another.
       - name: Fetch the SDK
         run: |
-          sed -i '' "s/^def native_version = .*/def native_version = '${{ matrix.version }}'/" build.gradle
-          grep '^def native_version' build.gradle
-          ./gradlew --no-daemon fetchDependencies
+          set -euo pipefail
+          for version in $(echo "${{ matrix.object }} ${{ matrix.libraries }}" | tr ' ' '\n' | sort -u); do
+            sed -i '' "s/^def native_version = .*/def native_version = '${version}'/" build.gradle
+            ./gradlew --no-daemon -q fetchDependencies
+            mv graal_builds "${RUNNER_TEMP}/graal_builds-${version}"
+          done
+          cp -R "${RUNNER_TEMP}/graal_builds-${{ matrix.object }}" graal_builds
+          for directory in ios ios_simulator; do
+            rm graal_builds/${directory}/*.a
+            cp "${RUNNER_TEMP}/graal_builds-${{ matrix.libraries }}/${directory}/"*.a graal_builds/${directory}/
+          done
+          ls -l graal_builds/ios graal_builds/ios_simulator | grep -E '\.(o|a)$'
 
       - name: Declare the platform of the SDK objects
         if: matrix.build_version
@@ -77,8 +102,11 @@ jobs:
               thin="${RUNNER_TEMP}/${sdk}-${arch}"
               xcrun lipo "${binary}" -thin "${arch}" -output "${thin}" 2>/dev/null || cp "${binary}" "${thin}"
               echo "${sdk}.${arch}.file=$(stat -f %z "${thin}")" >> "${out}"
-              # The segments (__TEXT, __DATA_CONST, __DATA, __LINKEDIT).
-              xcrun size -m "${thin}" | awk -v prefix="${sdk}.${arch}." '/^Segment [_A-Z]+: [0-9]+/ { gsub(":", "", $2); print prefix $2 "=" $3 }' >> "${out}"
+              # The segments (__TEXT, __DATA, __LINKEDIT, ...) and the sections of __TEXT and __DATA.
+              xcrun size -m "${thin}" | awk -v prefix="${sdk}.${arch}." '
+                /^Segment [_A-Z]+: [0-9]+/ { segment = $2; gsub(":", "", segment); print prefix segment "=" $3 }
+                /^[ 	]+Section [_a-z]+: [0-9]+/ && (segment == "__TEXT" || segment == "__DATA") {
+                  section = $2; gsub(":", "", section); print prefix segment "," section "=" $3 }' >> "${out}"
               echo "-- ${sdk} ${arch}: the libraries it loads"
               xcrun otool -L "${thin}" | tail -n +2
             done
