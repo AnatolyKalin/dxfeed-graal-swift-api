@@ -1,0 +1,122 @@
+# Compares the size of the linked DXFeedFramework (Release, iOS and the iOS Simulator) with different versions of the
+# graal-native-sdk: what the changes of the SDK objects (.o) and libraries (.a) do to the binary of the application.
+name: Binary size
+
+on:
+  push:
+    branches: [ci/binary-size]
+
+jobs:
+  size:
+    name: Size (${{ matrix.name }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The SDK that the Swift API uses now (GraalVM 22).
+          - name: 2.2.1
+            key: 1-2.2.1
+            version: 2.2.1
+          # The libraries before LC_LINKER_OPTION: the project adds -lz.
+          - name: 3.7.0-rc3 + -lz in the project
+            key: 2-3.7.0-rc3
+            version: 3.7.0-rc3
+            lz: true
+          # The libraries with LC_LINKER_OPTION (-lz, -framework CFNetwork).
+          - name: 3.7.0
+            key: 3-3.7.0
+            version: 3.7.0
+          # The object with LC_BUILD_VERSION, as the next release makes it.
+          - name: 3.7.0 + LC_BUILD_VERSION
+            key: 4-3.7.0-build-version
+            version: 3.7.0
+            build_version: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Fetch the SDK
+        run: |
+          sed -i '' "s/^def native_version = .*/def native_version = '${{ matrix.version }}'/" build.gradle
+          grep '^def native_version' build.gradle
+          ./gradlew --no-daemon fetchDependencies
+
+      - name: Declare the platform of the SDK objects
+        if: matrix.build_version
+        run: |
+          set -euo pipefail
+          python3 .github/sdk-tools/build.py set-build-version --file graal_builds/ios/libDxFeedGraalNativeSdk.o --platform ios
+          python3 .github/sdk-tools/build.py set-build-version --file graal_builds/ios_simulator/libDxFeedGraalNativeSdk.o --platform simulator
+
+      - name: Add -lz to the project
+        if: matrix.lz
+        run: |
+          sed -i '' 's/"-lc++",/"-lc++", "-lz",/' DXFeedFramework.xcodeproj/project.pbxproj
+          grep -c '"-lz"' DXFeedFramework.xcodeproj/project.pbxproj
+
+      - name: Build and measure
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/sizes-${{ matrix.key }}.txt"
+          echo "name=${{ matrix.name }}" > "${out}"
+          for entry in "iphoneos generic/platform=iOS" "iphonesimulator generic/platform=iOS Simulator"; do
+            sdk=${entry%% *}; destination=${entry#* }
+            xcodebuild build -project DXFeedFramework.xcodeproj -scheme DXFeedFramework -configuration Release \
+              -destination "${destination}" -derivedDataPath "build/${sdk}" CODE_SIGNING_ALLOWED=NO -quiet
+            binary="build/${sdk}/Build/Products/Release-${sdk}/DXFeedFramework.framework/DXFeedFramework"
+            echo "${sdk}.file=$(stat -f %z "${binary}")" >> "${out}"
+            for arch in $(xcrun lipo -archs "${binary}"); do
+              thin="${RUNNER_TEMP}/${sdk}-${arch}"
+              xcrun lipo "${binary}" -thin "${arch}" -output "${thin}" 2>/dev/null || cp "${binary}" "${thin}"
+              echo "${sdk}.${arch}.file=$(stat -f %z "${thin}")" >> "${out}"
+              # The segments (__TEXT, __DATA_CONST, __DATA, __LINKEDIT).
+              xcrun size -m "${thin}" | awk -v prefix="${sdk}.${arch}." '/^Segment [_A-Z]+: [0-9]+/ { gsub(":", "", $2); print prefix $2 "=" $3 }' >> "${out}"
+              echo "-- ${sdk} ${arch}: the libraries it loads"
+              xcrun otool -L "${thin}" | tail -n +2
+            done
+          done
+          cat "${out}"
+
+      - name: Upload the sizes
+        uses: actions/upload-artifact@v4
+        with:
+          name: sizes-${{ matrix.key }}
+          path: ${{ runner.temp }}/sizes-${{ matrix.key }}.txt
+
+  compare:
+    name: Compare
+    needs: size
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sizes-*
+          merge-multiple: true
+
+      - name: Table
+        run: |
+          python3 - <<'EOF' | tee -a "$GITHUB_STEP_SUMMARY"
+          import glob
+          rows = []
+          for path in sorted(glob.glob('sizes-*.txt')):
+              values = dict(line.strip().split('=', 1) for line in open(path) if '=' in line)
+              rows.append(values)
+          keys = sorted({key for row in rows for key in row if key != 'name'})
+          print('| | ' + ' | '.join(row['name'] for row in rows) + ' |')
+          print('|---|' + '---:|' * len(rows))
+          for key in keys:
+              cells = []
+              for row in rows:
+                  value = row.get(key)
+                  cells.append(f'{int(value):,}' if value else '—')
+              print(f'| `{key}` | ' + ' | '.join(cells) + ' |')
+          EOF
