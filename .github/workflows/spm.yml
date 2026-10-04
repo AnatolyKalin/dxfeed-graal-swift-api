@@ -1,0 +1,135 @@
+# DXFeedFramework as the clients of the Swift API get it (Package.swift: DXFeedFramework.zip of the GitHub release):
+# the XCFramework is made with the commands of the "Build XCFramework" target from this branch (graal-native-sdk
+# 3.8.0 as DxFeedGraalNativeSdk.xcframework), compared with DXFeedFramework.zip of the release 1.6.1
+# (graal-native-sdk 2.2.1), and used by a Swift package (.github/spm-consumer) on macOS (arm64, x86_64) and in the
+# iOS Simulator (arm64, x86_64), and built for iOS.
+name: SPM
+
+on:
+  push:
+    branches: [ci/patch-check]
+
+jobs:
+  xcframework:
+    name: Make DXFeedFramework.xcframework
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Fetch the SDK
+        run: ./gradlew --no-daemon fetchDependencies
+
+      # The script of the "Build XCFramework" target of the project.
+      - name: Make the XCFramework as the release does
+        run: |
+          set -euo pipefail
+          for entry in "ios generic/platform=iOS" "ios-sim generic/platform=iOS Simulator" "mac platform=macOS"; do
+            name=${entry%% *}; destination=${entry#* }
+            xcodebuild archive -project DXFeedFramework.xcodeproj -scheme DXFeedFramework -configuration Release \
+              -destination "${destination}" -archivePath "./build/DXFeedFramework.framework-${name}.xcarchive" \
+              SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES -quiet
+          done
+          xcodebuild -create-xcframework \
+            -framework './build/DXFeedFramework.framework-ios.xcarchive/Products/Library/Frameworks/DXFeedFramework.framework' \
+            -framework './build/DXFeedFramework.framework-ios-sim.xcarchive/Products/Library/Frameworks/DXFeedFramework.framework' \
+            -framework './build/DXFeedFramework.framework-mac.xcarchive/Products/Library/Frameworks/DXFeedFramework.framework' \
+            -output './build/DXFeedFramework.xcframework'
+          cd build
+          zip -q -y -r DXFeedFramework.zip DXFeedFramework.xcframework
+
+      - name: Compare with the release 1.6.1
+        run: |
+          set -euo pipefail
+          mkdir -p released
+          curl -fsSL -o released/DXFeedFramework.zip \
+            https://github.com/dxFeed/dxfeed-graal-swift-api/releases/download/1.6.1/DXFeedFramework.zip
+          (cd released && ditto -x -k DXFeedFramework.zip .)
+          echo "DXFeedFramework.zip: 1.6.1 $(stat -f %z released/DXFeedFramework.zip), this branch $(stat -f %z build/DXFeedFramework.zip)"
+          for root in released build; do
+            echo "== ${root}"
+            find "${root}/DXFeedFramework.xcframework" -maxdepth 1 -mindepth 1 -type d | sort | while read -r slice; do
+              binary=$(find "${slice}/DXFeedFramework.framework" -maxdepth 3 -name DXFeedFramework -type f | head -n 1)
+              echo "$(basename "${slice}"): $(stat -f %z "${binary}") bytes, $(xcrun lipo -archs "${binary}")"
+            done
+            find "${root}/DXFeedFramework.xcframework" -path '*Frameworks/*' -maxdepth 7 | sort | head -n 20
+          done
+          echo "SwiftPM checksum: $(swift package compute-checksum build/DXFeedFramework.zip)"
+
+      - name: Upload the XCFramework
+        uses: actions/upload-artifact@v4
+        with:
+          name: dxfeedframework
+          path: build/DXFeedFramework.zip
+
+  test-macos:
+    name: SPM test (macOS ${{ matrix.arch }})
+    needs: xcframework
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dxfeedframework
+      - name: Test
+        run: |
+          set -euo pipefail
+          ditto -x -k DXFeedFramework.zip .github/spm-consumer
+          cd .github/spm-consumer
+          swift test
+
+  test-ios:
+    name: SPM test (iOS Simulator ${{ matrix.arch }})
+    needs: xcframework
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dxfeedframework
+      - name: Choose a simulator
+        id: simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          ios = [(runtime, device) for runtime, items in devices.items() if ".iOS-" in runtime
+                 for device in items if device["name"].startswith("iPhone")]
+          version = lambda runtime: [int(part) for part in runtime.rsplit(".iOS-", 1)[1].split("-")]
+          runtime, device = max(ios, key=lambda item: version(item[0]))
+          print(runtime, device["name"], file=sys.stderr)
+          print(device["udid"])')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      - name: Test
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          ditto -x -k DXFeedFramework.zip .github/spm-consumer
+          cd .github/spm-consumer
+          scheme=$(xcodebuild -list -json | python3 -c 'import json, sys; schemes = json.load(sys.stdin)["workspace"]["schemes"]; print(next((s for s in schemes if s.endswith("-Package")), schemes[0]))')
+          xcodebuild test -scheme "${scheme}" -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}"
+          if [ "${{ matrix.arch }}" = arm64 ]; then
+            xcodebuild build -scheme "${scheme}" -destination generic/platform=iOS
+          fi
