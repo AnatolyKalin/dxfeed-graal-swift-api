@@ -8,9 +8,9 @@ on:
     branches: [ci/xcframework]
 
 env:
-  SDK_VERSION: 3.8.0-rc2
+  SDK_VERSION: 3.8.0
   # swift package compute-checksum of graal-native-sdk-<SDK_VERSION>-xcframework.zip
-  SDK_CHECKSUM: 8175e1ead7898679f04f2a7f75a6be63edc848520c0d30882c18b269386f1924
+  SDK_CHECKSUM: 0139b3d4cccd1bc72c7c3670a02fc99c17656776dc3eff59d89d161be4612f3b
 
 jobs:
   test-macos:
