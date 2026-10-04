@@ -15,13 +15,11 @@ repositories {
     }
 }
 
-def native_version = '2.2.1'
+def native_version = '3.8.0'
 def name = 'graal-native-sdk'
 dependencies {
-    implementation(group: 'com.dxfeed', name: "${name}", version: "${native_version}", classifier: 'aarch64-osx', ext: 'zip')
-    implementation(group: 'com.dxfeed', name: "${name}", version: "${native_version}", classifier: 'x86_64-osx', ext: 'zip')
-    implementation(group: 'com.dxfeed', name: "${name}", version: "${native_version}", classifier: 'aarch64-ios', ext: 'zip')
-    implementation(group: 'com.dxfeed', name: "${name}", version: "${native_version}", classifier: 'ios-simulator', ext: 'zip')
+    // DxFeedGraalNativeSdk.xcframework: static frameworks for iOS and the iOS Simulator, a dynamic one for macOS.
+    implementation(group: 'com.dxfeed', name: "${name}", version: "${native_version}", classifier: 'xcframework', ext: 'zip')
 }
 
 task fetchDependencies(type: Copy) {
@@ -44,30 +42,21 @@ task fetchDependencies(type: Copy) {
 
     doLast {
         println "fetch dep:"
-        ext.frameworkName = { zipFileName ->
-            switch(zipFileName) {
-                case ~/.*aarch64-osx.*/:
-                    return 'graal_builds/osx_arm'
-                    break
-                case ~/.*x86_64-osx.*/:
-                    return 'graal_builds/osx_x86'
-                    break
-                case ~/.*aarch64-ios.*/:
-                    return 'graal_builds/ios'
-                    break
-                case ~/.*ios-simulator.zip.*/:
-                    return 'graal_builds/ios_simulator'
-                    break
-                default:
-                    return 'graal_builds/$zipFileName'
-                    break
+        new File('graal_builds').mkdirs()
+        fileTree(dir: 'downloads', includes: ['*-xcframework.zip']).each { zipFile ->
+            // ditto keeps the symbolic links of the macOS framework (Versions/Current, ...), zipTree does not. A plain
+            // process rather than exec {}, which Gradle 9 no longer has in a task action (CI runs the system gradle).
+            def ditto = ['ditto', '-x', '-k', zipFile.path, 'graal_builds'].execute(null, projectDir)
+            ditto.waitForProcessOutput(System.out, System.err)
+            if (ditto.exitValue() != 0) {
+                throw new GradleException("ditto could not unpack ${zipFile.name}: ${ditto.exitValue()}")
             }
         }
-        fileTree(dir: 'downloads', includes: ['*.zip']).each { zipFile ->
-            copy {
-                from zipTree(zipFile)
-                into frameworkName(zipFile.name)
-            }
+        // The headers for module.map: a module map cannot name the headers inside a framework (they belong to its
+        // module), and the headers of all the slices are the same.
+        copy {
+            from 'graal_builds/DxFeedGraalNativeSdk.xcframework/ios-arm64/DxFeedGraalNativeSdk.framework/Headers'
+            into 'graal_builds/include'
         }
 
         new File('downloads').deleteDir()

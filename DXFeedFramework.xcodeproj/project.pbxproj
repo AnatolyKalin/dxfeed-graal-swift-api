@@ -21,6 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		591B976C24E11EA15CBE3508 /* DxFeedGraalNativeSdk.xcframework in Embed Libraries */ = {isa = PBXBuildFile; fileRef = 668CC4B870CF3F6C11EECD08 /* DxFeedGraalNativeSdk.xcframework */; platformFilters = (macos, ); settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		6401A5152A582134009BA686 /* IsolateTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8088D76A29C0FE1700F240CB /* IsolateTest.swift */; };
 		6401A5162A582141009BA686 /* SystemPropertyTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8088D77829C498FA00F240CB /* SystemPropertyTest.swift */; };
 		64048A592BD79D7600902590 /* Role+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64048A582BD79D7600902590 /* Role+Ext.swift */; };
@@ -53,7 +54,6 @@
 		64104FC92A26298D00D1FC41 /* DXFeedSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64104FC82A26298D00D1FC41 /* DXFeedSubscription.swift */; };
 		64104FCC2A2629D800D1FC41 /* NativeSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64104FCB2A2629D800D1FC41 /* NativeSubscription.swift */; };
 		64104FD32A277B2D00D1FC41 /* ListNative.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64104FD22A277B2D00D1FC41 /* ListNative.swift */; };
-		64125E362A1F689A00FB32BA /* libDxFeedGraalNativeSdk.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 64125E352A1F689A00FB32BA /* libDxFeedGraalNativeSdk.dylib */; platformFilters = (macos, ); settings = {ATTRIBUTES = (Required, ); }; };
 		64148B672ABB5C320063110E /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64148B662ABB5C320063110E /* main.swift */; };
 		64148B6F2ABC2F790063110E /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 646979712A3B5AF60003A9BA /* Colors.xcassets */; };
 		64148B702ABC2F7C0063110E /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6469F8D22A3B401700846831 /* Colors.swift */; };
@@ -444,7 +444,6 @@
 		64F73B9F2B6788B00088EC37 /* Promise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F73B9E2B6788B00088EC37 /* Promise.swift */; };
 		64F73BA42B67B28B0088EC37 /* NativePromise.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F73BA32B67B28B0088EC37 /* NativePromise.swift */; };
 		64F73BA62B67CD5B0088EC37 /* GraalException+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F73BA52B67CD5B0088EC37 /* GraalException+Ext.swift */; };
-		64FCAF902A572D4600971F4E /* libDxFeedGraalNativeSdk.dylib in Embed Libraries */ = {isa = PBXBuildFile; fileRef = 64125E352A1F689A00FB32BA /* libDxFeedGraalNativeSdk.dylib */; platformFilters = (macos, ); settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		803BAC1629BFA50700FFAB1C /* DXFeedFramework.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 803BAC0D29BFA50700FFAB1C /* DXFeedFramework.framework */; };
 		803BAC1C29BFA50700FFAB1C /* DxFeedSwiftFramework.h in Headers */ = {isa = PBXBuildFile; fileRef = 803BAC1029BFA50700FFAB1C /* DxFeedSwiftFramework.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		8088D76529C0FBCE00F240CB /* ThreadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8088D76329C0FBCE00F240CB /* ThreadManager.swift */; };
@@ -456,6 +455,7 @@
 		80FC415929C8EE8B00E6B611 /* DXEndpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80FC415829C8EE8B00E6B611 /* DXEndpoint.swift */; };
 		80FC415C29CA2B8800E6B611 /* NativeBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80FC415B29CA2B8800E6B611 /* NativeBuilder.swift */; };
 		80FC415F29CA2C5100E6B611 /* NativeProperty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80FC415E29CA2C5100E6B611 /* NativeProperty.swift */; };
+		DA1D43A6EBD8F6916A1A08F8 /* DxFeedGraalNativeSdk.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 668CC4B870CF3F6C11EECD08 /* DxFeedGraalNativeSdk.xcframework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -704,7 +704,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				64FCAF902A572D4600971F4E /* libDxFeedGraalNativeSdk.dylib in Embed Libraries */,
+				591B976C24E11EA15CBE3508 /* DxFeedGraalNativeSdk.xcframework in Embed Libraries */,
 			);
 			name = "Embed Libraries";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -746,7 +746,6 @@
 		64104FCB2A2629D800D1FC41 /* NativeSubscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSubscription.swift; sourceTree = "<group>"; };
 		64104FCD2A2637EA00D1FC41 /* EventsTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsTest.swift; sourceTree = "<group>"; };
 		64104FD22A277B2D00D1FC41 /* ListNative.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListNative.swift; sourceTree = "<group>"; };
-		64125E352A1F689A00FB32BA /* libDxFeedGraalNativeSdk.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libDxFeedGraalNativeSdk.dylib; path = graal_builds/osx_universal/libDxFeedGraalNativeSdk.dylib; sourceTree = "<group>"; };
 		64148B642ABB5C320063110E /* Tools */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Tools; sourceTree = BUILT_PRODUCTS_DIR; };
 		64148B662ABB5C320063110E /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		64148B6E2ABB5C4A0063110E /* Tools.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Tools.entitlements; sourceTree = "<group>"; };
@@ -1094,6 +1093,7 @@
 		64F9C6C12B4BFD8F003ED014 /* DXFeedconnect.playground */ = {isa = PBXFileReference; lastKnownFileType = file.playground; path = DXFeedconnect.playground; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		64FDD7B62C21A09000D4469B /* DxFeedReconnectSample.playground */ = {isa = PBXFileReference; lastKnownFileType = file.playground; path = DxFeedReconnectSample.playground; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		64FDD7B72C21AF9D00D4469B /* SimpleAuthSample.playground */ = {isa = PBXFileReference; lastKnownFileType = file.playground; path = SimpleAuthSample.playground; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
+		668CC4B870CF3F6C11EECD08 /* DxFeedGraalNativeSdk.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; name = DxFeedGraalNativeSdk.xcframework; path = graal_builds/DxFeedGraalNativeSdk.xcframework; sourceTree = SOURCE_ROOT; };
 		803BAC0D29BFA50700FFAB1C /* DXFeedFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = DXFeedFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		803BAC1029BFA50700FFAB1C /* DxFeedSwiftFramework.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DxFeedSwiftFramework.h; sourceTree = "<group>"; };
 		803BAC1529BFA50700FFAB1C /* DXFeedFrameworkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DXFeedFrameworkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1212,7 +1212,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				64125E362A1F689A00FB32BA /* libDxFeedGraalNativeSdk.dylib in Frameworks */,
+				DA1D43A6EBD8F6916A1A08F8 /* DxFeedGraalNativeSdk.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2010,7 +2010,7 @@
 		803BAC2529BFA67C00FFAB1C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				64125E352A1F689A00FB32BA /* libDxFeedGraalNativeSdk.dylib */,
+				668CC4B870CF3F6C11EECD08 /* DxFeedGraalNativeSdk.xcframework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -2406,7 +2406,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 803BAC1F29BFA50700FFAB1C /* Build configuration list for PBXNativeTarget "DXFeedFramework" */;
 			buildPhases = (
-				803BAC3229BFA9AD00FFAB1C /* Check graal libraries */,
 				803BAC0829BFA50700FFAB1C /* Headers */,
 				64656F632A1BB22E006A0B19 /* ShellScript */,
 				803BAC0929BFA50700FFAB1C /* Sources */,
@@ -2684,25 +2683,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]; then\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif which swiftlint > /dev/null; then\n  swiftlint\nelse\n  echo \"warning: SwiftLint not installed, download and install version 0.52.2 from https://github.com/realm/SwiftLint\"\nfi\n";
-		};
-		803BAC3229BFA9AD00FFAB1C /* Check graal libraries */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Check graal libraries";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ -d \"graal_builds\" ]; then\n    echo \"Grall builds are existing\"\n    if [ -d \"graal_builds/osx_universal\" ]; then\n        echo \"Graal ios is ready.\"\n    else\n        echo \"Graal ios is not ready.\"\n    fi\n\n    if [ -d \"graal_builds/osx_universal\" ]; then\n        echo \"Graal is ready.\"\n    else \n        echo \"Create universal macOS lib\"\n        cp -r \"graal_builds/osx_x86\" \"graal_builds/temp\"\n        rm \"graal_builds/temp/libDxFeedGraalNativeSdk.dylib\"\n        lipo \"graal_builds/osx_x86/libDxFeedGraalNativeSdk.dylib\" \"graal_builds/osx_arm/libDxFeedGraalNativeSdk.dylib\" -output \"graal_builds/temp/libDxFeedGraalNativeSdk.dylib\" -create\n        mv \"graal_builds/temp\" \"graal_builds/osx_universal\"\n    fi\n    \nelse\n  echo \"Grall builds are not existing. Please download dependencies using shell command './gradlew'.\"\n  exit 1\nfi\n";
 		};
 		803BAC3729BFAAEC00FFAB1C /* Build XCFramework */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -4297,26 +4277,10 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/graal_builds/osx_universal",
-					"$(PROJECT_DIR)/graal_builds/ios",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = "";
-				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
-					"-lc++",
-					"$(SRCROOT)/graal_builds/ios/graal-svm-arm64-ios-r.a",
-					"$(SRCROOT)/graal_builds/ios/jdk-arm64-ios-r.a",
-					"$(SRCROOT)/graal_builds/ios/libDxFeedGraalNativeSdk.o",
-				);
-				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
-					"-lc++",
-					"$(SRCROOT)/graal_builds/ios_simulator/graal-svm-ios-simulator-r.a",
-					"$(SRCROOT)/graal_builds/ios_simulator/jdk-ios-simulator-r.a",
-					"$(SRCROOT)/graal_builds/ios_simulator/libDxFeedGraalNativeSdk.o",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dxfeed.DXFeedFramework;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -4360,25 +4324,9 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(PROJECT_DIR)/graal_builds/osx_universal",
-					"$(PROJECT_DIR)/graal_builds/ios",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MARKETING_VERSION = 1.0;
-				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
-					"-lc++",
-					"$(SRCROOT)/graal_builds/ios/graal-svm-arm64-ios-r.a",
-					"$(SRCROOT)/graal_builds/ios/jdk-arm64-ios-r.a",
-					"$(SRCROOT)/graal_builds/ios/libDxFeedGraalNativeSdk.o",
-				);
-				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
-					"-lc++",
-					"$(SRCROOT)/graal_builds/ios_simulator/graal-svm-ios-simulator-r.a",
-					"$(SRCROOT)/graal_builds/ios_simulator/jdk-ios-simulator-r.a",
-					"$(SRCROOT)/graal_builds/ios_simulator/libDxFeedGraalNativeSdk.o",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.dxfeed.DXFeedFramework;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
