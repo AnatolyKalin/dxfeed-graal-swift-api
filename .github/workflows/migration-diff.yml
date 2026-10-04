@@ -1,0 +1,22 @@
+# The change of the Xcode project that .github/migration/migrate.rb makes, as a diff for the migration patch.
+name: Migration diff
+
+on:
+  push:
+    branches: [ci/migration-diff]
+
+jobs:
+  diff:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Change the project
+        run: |
+          ruby -e "require 'xcodeproj'" 2>/dev/null || gem install --user-install --no-document xcodeproj
+          ruby .github/migration/migrate.rb
+          git diff -- DXFeedFramework.xcodeproj > project.diff
+          git diff --stat
+      - uses: actions/upload-artifact@v4
+        with:
+          name: project-diff
+          path: project.diff
