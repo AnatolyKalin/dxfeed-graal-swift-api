@@ -33,6 +33,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import textwrap
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -826,7 +827,8 @@ def manifest(arguments):
         lines += [f'# The install name of the library is {install_name}: add the directory of the library to the run',
                   '# path of the application (-Wl,-rpath,<directory>), or put the library next to it',
                   '# (-Wl,-rpath,@executable_path).',
-                  '# The library loads: ' + ', '.join(loaded) + '.']
+                  *textwrap.wrap('The library loads: ' + ', '.join(loaded) + '.', width=118, initial_indent='# ',
+                                 subsequent_indent='#   ', break_long_words=False, break_on_hyphens=False)]
     else:
         lines += ['# The SDK build links the files with these flags only (without autolinking) before publishing.',
                   '# The objects also name their system libraries for the linker (LC_LINKER_OPTION), so with',

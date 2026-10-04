@@ -6,7 +6,7 @@ name: SDK check
 on:
   push:
     # These branches run their own workflows.
-    branches-ignore: [ci/binary-size, ci/xcframework]
+    branches-ignore: [ci/binary-size, ci/xcframework, ci/xcframework-migration]
   workflow_dispatch:
     inputs:
       sdk_version:
