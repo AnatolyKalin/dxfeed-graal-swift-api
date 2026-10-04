@@ -26,7 +26,9 @@ final class DXAsyncLocalLastTest: XCTestCase {
 
     func testLastEventTask() async throws {
         let inputSymbol = StringUtil.random(length: 5)
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.1) {
+        // A block of the background QoS can wait for seconds on a loaded simulator, and the await below waits for the
+        // published events without a timeout.
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.1) {
             try? self.publisher.publish(events: [Trade(inputSymbol)])
         }
 
@@ -45,7 +47,9 @@ final class DXAsyncLocalLastTest: XCTestCase {
 
     func testLastEventsTask() async throws {
         let inputSymbols = Set([StringUtil.random(length: 5), StringUtil.random(length: 5)])
-        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.1) {
+        // A block of the background QoS can wait for seconds on a loaded simulator, and the await below waits for the
+        // published events without a timeout.
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.1) {
             try? self.publisher.publish(events: inputSymbols.map({ str in
                 let quote = Quote(str)
                 quote.askPrice = 100
