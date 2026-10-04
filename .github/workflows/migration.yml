@@ -1,5 +1,5 @@
 # DXFeedFramework with DxFeedGraalNativeSdk.xcframework instead of the files of the archives (the migration guide,
-# .github/migration): the XCFramework is made from the 3.7.0 archives as the SDK build will, then DXFeedFramework is
+# .github/migration): the XCFramework of the graal-native-sdk release, then DXFeedFramework is
 # built for iOS, tested on macOS and in the iOS Simulator (arm64, x86_64), and its size is measured (Release).
 name: XCFramework migration
 
@@ -8,55 +8,24 @@ on:
     branches: [ci/xcframework-migration]
 
 env:
-  SDK_VERSION: 3.7.0
+  SDK_VERSION: 3.8.0-rc2
   TOOL: .github/sdk-tools/build.py
 
 jobs:
   xcframework:
-    name: Make the XCFramework
-    runs-on: macos-15
+    name: Take the XCFramework
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Make the XCFramework
+      - name: Download the XCFramework of the release
         run: |
-          set -euo pipefail
-          sed -i '' "s/^def native_version = .*/def native_version = '${SDK_VERSION}'/" build.gradle
-          ./gradlew --no-daemon -q fetchDependencies
-          python3 "${TOOL}" set-build-version --file graal_builds/ios/libDxFeedGraalNativeSdk.o --platform ios
-          python3 "${TOOL}" set-build-version --file graal_builds/ios_simulator/libDxFeedGraalNativeSdk.o --platform simulator
-          python3 "${TOOL}" xcframework --ios graal_builds/ios --simulator graal_builds/ios_simulator \
-            --macos graal_builds/osx_arm graal_builds/osx_x86 --version "${SDK_VERSION}" --work build/xcframework \
-            --zip "build/graal-native-sdk-${SDK_VERSION}-xcframework.zip"
-
-      # Does the Copy from zipTree of Gradle (fetchDependencies) keep the links of the macOS framework?
-      - name: Unpack with Gradle
-        run: |
-          set -uo pipefail
-          mkdir -p build/ziptree
-          cat > build/ziptree/build.gradle <<EOF
-          task unpack(type: Copy) {
-              from zipTree('${PWD}/build/graal-native-sdk-${SDK_VERSION}-xcframework.zip')
-              into 'out'
-          }
-          EOF
-          touch build/ziptree/settings.gradle
-          ./gradlew --no-daemon -q -p build/ziptree unpack
-          current=build/ziptree/out/DxFeedGraalNativeSdk.xcframework/macos-arm64_x86_64/DxFeedGraalNativeSdk.framework/Versions/Current
-          if [ -L "${current}" ]; then echo "zipTree keeps the links"; else echo "zipTree does not keep the links: $(ls -la "${current}" 2>&1)"; fi
+          curl --fail --location --silent --show-error --remote-name             "https://github.com/dxFeed/dxfeed-graal-native-sdk/releases/download/v${SDK_VERSION}/graal-native-sdk-${SDK_VERSION}-xcframework.zip"
+          ls -l graal-native-sdk-*-xcframework.zip
 
       - name: Upload the XCFramework
         uses: actions/upload-artifact@v4
         with:
           name: xcframework
-          path: build/graal-native-sdk-*-xcframework.zip
+          path: graal-native-sdk-*-xcframework.zip
 
   ios:
     name: Build (iOS)
