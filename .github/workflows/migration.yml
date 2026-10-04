@@ -8,7 +8,7 @@ on:
     branches: [ci/xcframework-migration]
 
 env:
-  SDK_VERSION: 3.8.0-rc2
+  SDK_VERSION: 3.8.0
   TOOL: .github/sdk-tools/build.py
 
 jobs:
