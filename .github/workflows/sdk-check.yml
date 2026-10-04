@@ -1,0 +1,151 @@
+# Builds DXFeedFramework with a version of the graal-native-sdk (a release of dxFeed/dxfeed-graal-native-sdk) for
+# iOS, the iOS Simulator and macOS, and runs the tests on macOS and in the iOS Simulator (arm64 and x86_64). The version
+# is native_version of build.gradle, or the sdk_version input of a manual run.
+name: SDK check
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: 'The graal-native-sdk version, for example 3.7.0-rc3 (empty: native_version of build.gradle)'
+        required: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    # macOS 15: an SDK library that requires a newer macOS fails the tests here.
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iOS
+            destination: generic/platform=iOS
+            runner: macos-15
+          - name: iOS Simulator
+            destination: generic/platform=iOS Simulator
+            runner: macos-15
+          - name: macOS
+            destination: platform=macOS
+            runner: macos-15
+          # The x64 library of macOS is built with another GraalVM (jdk-25.0.1).
+          - name: macOS x86_64
+            destination: platform=macOS,arch=x86_64
+            runner: macos-15-intel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set the SDK version
+        if: inputs.sdk_version != ''
+        run: sed -i '' "s/^def native_version = .*/def native_version = '${{ inputs.sdk_version }}'/" build.gradle
+
+      - name: Fetch the SDK
+        run: |
+          grep '^def native_version' build.gradle
+          ./gradlew --no-daemon fetchDependencies
+          find graal_builds -maxdepth 2 -type f | sort
+
+      - name: Build
+        run: >
+          xcodebuild build -project DXFeedFramework.xcodeproj -scheme DXFeedFramework
+          -destination '${{ matrix.destination }}' CODE_SIGNING_ALLOWED=NO
+
+      - name: Test
+        if: startsWith(matrix.name, 'macOS')
+        timeout-minutes: 30
+        run: >
+          xcodebuild test -project DXFeedFramework.xcodeproj -scheme DXFeedFramework
+          -testPlan DXExceptPublisherTests -destination '${{ matrix.destination }}' CODE_SIGNING_ALLOWED=NO
+
+  # Runs the tests in the iOS Simulator: arm64 (the image of the device with the SDK libraries of the arm64 simulator)
+  # and x86_64 (the image and the libraries of the x86_64 simulator, built from GraalVM for macOS x64).
+  test-ios-simulator:
+    name: Test (iOS Simulator, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set the SDK version
+        if: inputs.sdk_version != ''
+        run: sed -i '' "s/^def native_version = .*/def native_version = '${{ inputs.sdk_version }}'/" build.gradle
+
+      - name: Fetch the SDK
+        run: |
+          grep '^def native_version' build.gradle
+          ./gradlew --no-daemon fetchDependencies
+
+      - name: Choose a simulator
+        id: simulator
+        run: |
+          uname -m
+          # The iPhone with the newest iOS runtime installed on the runner.
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          ios = [(runtime, device) for runtime, items in devices.items() if ".iOS-" in runtime
+                 for device in items if device["name"].startswith("iPhone")]
+          version = lambda runtime: [int(part) for part in runtime.rsplit(".iOS-", 1)[1].split("-")]
+          runtime, device = max(ios, key=lambda item: version(item[0]))
+          print(runtime, device["name"], file=sys.stderr)
+          print(device["udid"])')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      # The build, the boot of the simulator and the run are separate steps, so the times of the steps show which one
+      # is slow or hangs.
+      - name: Build the tests
+        run: >
+          xcodebuild build-for-testing -project DXFeedFramework.xcodeproj -scheme DXFeedFramework
+          -testPlan DXExceptPublisherTests -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}'
+          -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO
+
+      - name: Boot the simulator
+        run: xcrun simctl bootstatus ${{ steps.simulator.outputs.udid }} -b
+
+      - name: Test
+        timeout-minutes: 30
+        run: >
+          xcodebuild test-without-building -project DXFeedFramework.xcodeproj -scheme DXFeedFramework
+          -testPlan DXExceptPublisherTests -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}'
+          -derivedDataPath build/DerivedData -resultBundlePath build/TestResults.xcresult
+          -test-timeouts-enabled YES -default-test-execution-time-allowance 120 -maximum-test-execution-time-allowance 300
+
+      - name: Simulator log
+        if: failure() || cancelled()
+        run: >
+          xcrun simctl spawn ${{ steps.simulator.outputs.udid }} log show --last 30m --style compact
+          --predicate 'process CONTAINS "xctest" OR process CONTAINS "DXFeed" OR subsystem CONTAINS "dxfeed"'
+          | tail -n 500
+
+      - name: Upload the test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults-iOS-Simulator-${{ matrix.arch }}
+          path: build/TestResults.xcresult
+          if-no-files-found: ignore
