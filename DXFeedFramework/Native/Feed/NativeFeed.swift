@@ -79,6 +79,7 @@ class NativeFeed {
 
     func getLastEvent(type: MarketEvent) throws -> ILastingEvent? {
         let thread = currentThread()
+        // The event with the type and the symbol of the requested one: getLastEvent2 only reads it.
         let inputEvent = try ErrorCheck.nativeCall(thread,
                                                    dxfg_EventType_new(
                                                     thread,
@@ -91,59 +92,68 @@ class NativeFeed {
                                             thread,
                                             inputEvent))
         }
+        // A new event: the last one, or a copy of the input event when the last one is not available.
+        var lastEvent: UnsafeMutablePointer<dxfg_event_type_t>?
         _ = try ErrorCheck.nativeCall(thread,
-                                      dxfg_DXFeed_getLastEvent(
+                                      dxfg_DXFeed_getLastEvent2(
                                         thread,
                                         self.feed,
-                                        inputEvent))
-
-        let event = try mapper.fromNative(native: inputEvent)
+                                        inputEvent,
+                                        &lastEvent))
+        let resultEvent = try lastEvent.value()
+        defer {
+            _ = try? ErrorCheck.nativeCall(thread,
+                                           dxfg_EventType_release(
+                                            thread,
+                                            resultEvent))
+        }
+        let event = try mapper.fromNative(native: resultEvent)
         return event?.lastingEvent
     }
 
     func getLastEvents(types: [MarketEvent]) throws -> [ILastingEvent] {
-        let listPointer = UnsafeMutablePointer<dxfg_event_type_list>.allocate(capacity: 1)
-        listPointer.pointee.size = Int32(types.count)
-        let classes = UnsafeMutablePointer<UnsafeMutablePointer<dxfg_event_type_t>?>
-            .allocate(capacity: types.count)
-        var iterator = classes
         let thread = currentThread()
-
+        // The events with the types and the symbols of the requested ones: getLastEvents2 only reads them.
+        var inputEvents = [UnsafeMutablePointer<dxfg_event_type_t>?]()
+        defer {
+            inputEvents.forEach { inputEvent in
+                _ = try? ErrorCheck.nativeCall(thread,
+                                               dxfg_EventType_release(
+                                                thread,
+                                                inputEvent))
+            }
+        }
         types.forEach { event in
             if let inputEvent = try? ErrorCheck.nativeCall(thread, dxfg_EventType_new(
                 thread,
                 event.eventSymbol,
                 event.type.nativeCode())) {
-                iterator.initialize(to: inputEvent)
-                iterator = iterator.successor()
+                inputEvents.append(inputEvent)
             }
         }
-        listPointer.pointee.elements = classes
-
+        // A new list of new events, in the order of the input events.
+        var lastEvents: UnsafeMutablePointer<dxfg_event_type_list>?
+        try inputEvents.withUnsafeMutableBufferPointer { elements in
+            var list = dxfg_event_type_list(size: Int32(elements.count), elements: elements.baseAddress)
+            _ = try ErrorCheck.nativeCall(thread,
+                                          dxfg_DXFeed_getLastEvents2(
+                                            thread,
+                                            self.feed,
+                                            &list,
+                                            &lastEvents))
+        }
+        let resultList = try lastEvents.value()
         defer {
-            for index in 0..<Int(listPointer.pointee.size) {
-                let element = listPointer.pointee.elements[index]
-                _ = try? ErrorCheck.nativeCall(thread,
-                                               dxfg_EventType_release(
-                                                thread,
-                                                element))
-            }
-            listPointer.deinitialize(count: 1)
-            listPointer.deallocate()
+            _ = try? ErrorCheck.nativeCall(thread,
+                                           dxfg_CList_EventType_release(
+                                            thread,
+                                            resultList))
         }
         var results = [ILastingEvent]()
-        _ = try ErrorCheck.nativeCall(thread,
-                                      dxfg_DXFeed_getLastEvents(
-                                        thread,
-                                        self.feed,
-                                        listPointer))
-
-        for index in 0..<Int(listPointer.pointee.size) {
-            if let elemenent = listPointer.pointee.elements[index] {
-                let event = try mapper.fromNative(native: elemenent)
-                if let lastingEvent = event?.lastingEvent {
-                    results.append(lastingEvent)
-                }
+        for index in 0..<Int(resultList.pointee.size) {
+            if let element = resultList.pointee.elements[index],
+               let lastingEvent = try mapper.fromNative(native: element)?.lastingEvent {
+                results.append(lastingEvent)
             }
         }
         return results
