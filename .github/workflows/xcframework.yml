@@ -1,7 +1,6 @@
-# Makes DxFeedGraalNativeSdk.xcframework from the graal-native-sdk archives with jre-ios/build.py of the SDK
-# (.github/sdk-tools/build.py, branch feature/xcframework-and-link-manifest), as the SDK build will, and checks it as an
-# application does: a Swift package with a binaryTarget (.github/xcframework-consumer) creates an isolate with an
-# isolate argument on macOS (arm64, x86_64) and in the iOS Simulator (arm64, x86_64), and builds for iOS.
+# Checks DxFeedGraalNativeSdk.xcframework of a graal-native-sdk release as an application does: a Swift package
+# (.github/xcframework-consumer) takes it from the GitHub release (binaryTarget with url and checksum), creates an
+# isolate with an isolate argument on macOS (arm64, x86_64) and in the iOS Simulator (arm64, x86_64), and builds for iOS.
 name: XCFramework
 
 on:
@@ -9,72 +8,13 @@ on:
     branches: [ci/xcframework]
 
 env:
-  SDK_VERSION: 3.7.0
-  TOOL: .github/sdk-tools/build.py
+  SDK_VERSION: 3.8.0-rc2
+  # swift package compute-checksum of graal-native-sdk-<SDK_VERSION>-xcframework.zip
+  SDK_CHECKSUM: 8175e1ead7898679f04f2a7f75a6be63edc848520c0d30882c18b269386f1924
 
 jobs:
-  build:
-    name: Make the XCFramework
-    runs-on: macos-15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Fetch the SDK
-        run: |
-          sed -i '' "s/^def native_version = .*/def native_version = '${SDK_VERSION}'/" build.gradle
-          ./gradlew --no-daemon -q fetchDependencies
-          find graal_builds -maxdepth 2 \( -name '*.o' -o -name '*.a' -o -name '*.dylib' \) | sort
-
-      # As the SDK build does for each archive: the platform of the object, the manifest, the link checks.
-      - name: Prepare the archives
-        run: |
-          set -euo pipefail
-          python3 "${TOOL}" set-build-version --file graal_builds/ios/libDxFeedGraalNativeSdk.o --platform ios
-          python3 "${TOOL}" set-build-version --file graal_builds/ios_simulator/libDxFeedGraalNativeSdk.o --platform simulator
-          for entry in "ios ios" "ios_simulator simulator" "osx_arm macos" "osx_x86 macos"; do
-            set -- ${entry}
-            python3 "${TOOL}" manifest --dir graal_builds/$1 --platform $2 --version "${SDK_VERSION}"
-          done
-          python3 "${TOOL}" check --dir graal_builds/ios --platform ios
-          python3 "${TOOL}" check --dir graal_builds/ios_simulator --platform simulator
-
-      - name: Make the XCFramework
-        run: |
-          python3 "${TOOL}" xcframework --ios graal_builds/ios --simulator graal_builds/ios_simulator \
-            --macos graal_builds/osx_arm graal_builds/osx_x86 --version "${SDK_VERSION}" --work build/xcframework \
-            --zip "build/graal-native-sdk-${SDK_VERSION}-xcframework.zip"
-
-      - name: Show the XCFramework
-        run: |
-          set -euo pipefail
-          framework=build/xcframework/DxFeedGraalNativeSdk.xcframework
-          find "${framework}" -maxdepth 4 | sort
-          plutil -p "${framework}/Info.plist"
-          for binary in $(find "${framework}" -type f -name DxFeedGraalNativeSdk); do
-            echo "-- ${binary}: $(stat -f %z "${binary}") bytes, $(xcrun lipo -archs "${binary}")"
-            plist=$(dirname "${binary}")/Info.plist; [ -f "${plist}" ] || plist=$(dirname "${binary}")/Resources/Info.plist
-            plutil -p "${plist}" | grep -E 'Version|Minimum|Platforms' -A1
-          done
-          ls -l build/*.zip
-          echo "SwiftPM checksum: $(swift package compute-checksum build/graal-native-sdk-${SDK_VERSION}-xcframework.zip)"
-          for directory in ios ios_simulator osx_arm; do echo "== graal_builds/${directory}/link-flags.txt"; cat graal_builds/${directory}/link-flags.txt; done
-
-      - name: Upload the XCFramework
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcframework
-          path: build/graal-native-sdk-*-xcframework.zip
-
   test-macos:
     name: Test (macOS ${{ matrix.arch }})
-    needs: build
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -88,20 +28,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: xcframework
+      - name: Take the XCFramework from the release
+        run: |
+          url="https://github.com/dxFeed/dxfeed-graal-native-sdk/releases/download/v${SDK_VERSION}/graal-native-sdk-${SDK_VERSION}-xcframework.zip"
+          sed -i '' "s#.binaryTarget(name: \"DxFeedGraalNativeSdk\", path: \"DxFeedGraalNativeSdk.xcframework\")#.binaryTarget(name: \"DxFeedGraalNativeSdk\", url: \"${url}\", checksum: \"${SDK_CHECKSUM}\")#" .github/xcframework-consumer/Package.swift
+          grep -n binaryTarget .github/xcframework-consumer/Package.swift
 
       - name: Test
         run: |
           set -euo pipefail
-          ditto -x -k graal-native-sdk-*-xcframework.zip .github/xcframework-consumer
           cd .github/xcframework-consumer
           swift test
 
   test-ios:
     name: Test (iOS Simulator ${{ matrix.arch }})
-    needs: build
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -115,9 +55,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: xcframework
+      - name: Take the XCFramework from the release
+        run: |
+          url="https://github.com/dxFeed/dxfeed-graal-native-sdk/releases/download/v${SDK_VERSION}/graal-native-sdk-${SDK_VERSION}-xcframework.zip"
+          sed -i '' "s#.binaryTarget(name: \"DxFeedGraalNativeSdk\", path: \"DxFeedGraalNativeSdk.xcframework\")#.binaryTarget(name: \"DxFeedGraalNativeSdk\", url: \"${url}\", checksum: \"${SDK_CHECKSUM}\")#" .github/xcframework-consumer/Package.swift
+          grep -n binaryTarget .github/xcframework-consumer/Package.swift
 
       - name: Choose a simulator
         id: simulator
@@ -137,7 +79,6 @@ jobs:
         timeout-minutes: 30
         run: |
           set -euo pipefail
-          ditto -x -k graal-native-sdk-*-xcframework.zip .github/xcframework-consumer
           cd .github/xcframework-consumer
           xcodebuild -list
           scheme=$(xcodebuild -list -json | python3 -c 'import json, sys; schemes = json.load(sys.stdin)["workspace"]["schemes"]; print(next((s for s in schemes if s.endswith("-Package")), schemes[0]))')
