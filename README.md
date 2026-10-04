@@ -80,8 +80,8 @@ Find useful information in our self-service dxFeed Knowledge Base or Swift API d
 
 | OS                  | Version | Architectures |
 |---------------------|---------|---------------|
-| [macOS][macOS]      | 10.13+  | x64           |
-| [macOS][macOS]      | 11+     | Arm64         |
+| [macOS][macOS]      | 11+     | x64           |
+| [macOS][macOS]      | 14+     | Arm64         |
 
 Is supported in the Rosetta 2 x64 emulator.
 
@@ -92,7 +92,8 @@ Is supported in the Rosetta 2 x64 emulator.
 | OS                  | Version | Architectures |
 |---------------------|---------|---------------|
 | [iOS][iOS]          | 12+     | Arm64         |
-| iOS Simulator       | 12+     | x64, Arm64    |
+| iOS Simulator       | 12+     | x64           |
+| iOS Simulator       | 14+     | Arm64         |
 
 [iOS]: https://support.apple.com/ios
 
